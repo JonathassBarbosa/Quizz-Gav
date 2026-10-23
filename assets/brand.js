@@ -202,7 +202,7 @@
         root.classList.remove('jump', 'droop'); void root.offsetWidth;
         if (kind === 'right') root.classList.add('jump');
         if (kind === 'wrong') root.classList.add('droop');
-        show(s[0], text, s[1], 4200);
+        show(s[0], text, s[1], 3200);
       },
       auto: function (on) { enabled = on; }
     };

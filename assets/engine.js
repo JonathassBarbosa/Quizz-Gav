@@ -6,7 +6,7 @@
    ========================================================================== */
 function createEngine(S) {
   var LETTERS = ['A', 'B', 'C', 'D'];
-  var PREROLL_MS = 3500;   // tempo da animação de transição antes da pergunta abrir
+  var PREROLL_MS = 3000;   // tempo da animação de transição antes da pergunta abrir
   var GRACE_MS = 1500;     // tolerância de rede após o fim do tempo
 
   function err(code, msg) { return { ok: false, error: code, message: msg || code }; }
@@ -15,7 +15,7 @@ function createEngine(S) {
   function publicState(st, withCorrect) {
     var out = {
       ok: true, session: st.session || null, phase: st.phase || 'off', q: st.q, total: st.total || 0,
-      startedAt: st.startedAt || 0, endsAt: st.endsAt || 0, title: st.title || '', quiz: st.quiz || '', timed: !!st.timed, secs: st.secs || 0, v: st.v || 0,
+      startedAt: st.startedAt || 0, endsAt: st.endsAt || 0, title: st.title || '', quiz: st.quiz || '', view: st.view || '', timed: !!st.timed, secs: st.secs || 0, v: st.v || 0,
       serverNow: S.now()
     };
     if (st.session && st.q >= 0 && (st.phase === 'question' || st.phase === 'reveal')) {
@@ -101,15 +101,49 @@ function createEngine(S) {
       if (opts.indexOf('') >= 0) return { error: 'A pergunta ' + n + ' tem uma alternativa vazia no meio.' };
       var c = String(q.correct || '').toUpperCase().charAt(0);
       if (LETTERS.indexOf(c) < 0 || LETTERS.indexOf(c) >= opts.length) return { error: 'Marque a alternativa correta da pergunta ' + n + '.' };
-      out.push({ text: text, options: opts, correct: c });
+      out.push({ text: text, options: opts, correct: c,
+        section: String(q.section || '').trim().slice(0, 60), note: String(q.note || '').trim().slice(0, 240) });
     }
     return { list: out };
   }
   function cleanName(n) { return String(n || '').replace(/\s+/g, ' ').trim().slice(0, 60); }
 
+  /* resultado individual (lido do cache por participante — rápido) */
+  function myResult(st, pid) {
+    var key = st.phase === 'end' ? 'final' : st.q;
+    var me = S.getMyResult ? S.getMyResult(st.session, key, pid) : null;
+    var res = null;
+    if (!me) { res = S.getResults(st.session, key); if (!res) return null; me = res.players[pid] || null; }
+    var meta = S.getResultsMeta ? S.getResultsMeta(st.session, key) : null;
+    meta = meta || res || S.getResults(st.session, key) || {};
+    return { q: st.q, correct: meta.correct || null, me: me, total: meta.count || 0, rooms: meta.rooms || 0 };
+  }
+
   var actions = {
     /* ---------- públicas (celulares) ---------- */
-    state: function () { return publicState(S.getState()); },
+    state: function (p) {
+      var st = S.getState(), out = publicState(st);
+      // junto com o estado, o celular já recebe o próprio resultado (economiza uma chamada)
+      if (p && p.pid && st.session && (st.phase === 'reveal' || st.phase === 'end')) out.res = myResult(st, String(p.pid));
+      return out;
+    },
+
+    /* gabarito: só depois do fim do quiz; inclui as respostas da própria pessoa */
+    gabarito: function (p) {
+      var st = S.getState();
+      if (st.phase !== 'end' || !st.session) return err('not_yet', 'O gabarito fica disponível no fim do quiz.');
+      var qs = S.getQuestions(st.session), pid = String(p.pid || ''), mine = [];
+      qs.forEach(function (q, i) {
+        var m = pid ? (S.getMyResult ? S.getMyResult(st.session, i, pid) : null) : null;
+        if (!m && pid) { var r = S.getResults(st.session, i); m = r && r.players ? r.players[pid] : null; }
+        mine.push(m ? { choice: m.choice || null, correct: !!m.correct } : null);
+      });
+      var fin = pid ? myResult(st, pid) : null;
+      return { ok: true, quiz: st.quiz || '', title: st.title || '', date: st.startedAt || S.now(), total: qs.length,
+        questions: qs.map(function (q) { return { text: q.text, options: q.options, correct: q.correct, section: q.section || '', note: q.note || '' }; }),
+        mine: mine, me: fin ? fin.me : null, players: fin ? fin.total : 0, rooms: fin ? fin.rooms : 0 };
+    },
+
 
     join: function (p) {
       var st = S.getState();
@@ -172,7 +206,7 @@ function createEngine(S) {
       if (!qs || !qs.length) return err('no_questions', 'Escolha um quiz salvo com perguntas.');
       var timed = String(p.timer) === '1' || p.timer === true;
       var secs = Math.max(5, Math.min(300, Math.round(Number(p.secs) || 20)));
-      qs = qs.map(function (q) { return { text: q.text, options: q.options, correct: q.correct, time: timed ? secs : 0 }; });
+      qs = qs.map(function (q) { return { text: q.text, options: q.options, correct: q.correct, section: q.section || '', note: q.note || '', time: timed ? secs : 0 }; });
       var d = new Date(S.now());
       var session = 'S' + d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2) +
         '-' + ('0' + d.getHours()).slice(-2) + ('0' + d.getMinutes()).slice(-2) + '-' + Math.random().toString(36).slice(2, 6);
@@ -187,7 +221,7 @@ function createEngine(S) {
       if (!st.session) return err('no_session');
       if (st.q + 1 >= st.total) return actions.host_end();
       var qi = st.q + 1, q = S.getQuestions(st.session)[qi], now = S.now();
-      st.phase = 'question'; st.q = qi; st.startedAt = now + PREROLL_MS; st.endsAt = q.time ? st.startedAt + q.time * 1000 : 0;
+      st.view = ''; st.phase = 'question'; st.q = qi; st.startedAt = now + PREROLL_MS; st.endsAt = q.time ? st.startedAt + q.time * 1000 : 0;
       return publicState(bump(st), true);
     },
 
@@ -202,7 +236,7 @@ function createEngine(S) {
         map[m.pid] = { choice: a ? a.choice : null, correct: a ? a.correct : false, points: a ? a.points : 0, score: m.score, hits: m.hits, pos: m.pos, room: m.room, roomPos: rp[m.room || 'Sem sala'] };
       });
       S.putResults(st.session, st.q, { correct: r.correct, count: rank.length, players: map });
-      st.phase = 'reveal';
+      st.phase = 'reveal'; st.view = '';
       return publicState(bump(st), true);
     },
 
@@ -213,8 +247,16 @@ function createEngine(S) {
       rooms.forEach(function (x) { rp[x.room] = x.pos; });
       rank.forEach(function (m) { map[m.pid] = { score: m.score, pos: m.pos, hits: m.hits, room: m.room, roomPos: rp[m.room || 'Sem sala'] }; });
       S.putResults(st.session, 'final', { correct: null, count: rank.length, rooms: rooms.length, players: map });
-      st.phase = 'end';
+      st.phase = 'end'; st.view = '';
       return publicState(bump(st), true);
+    },
+
+    /* o painel do administrador escolhe o que o telão mostra: '' (normal) ou ranking */
+    host_view: function (p) {
+      var st = S.getState(), v = String(p.view || '');
+      if (['', 'rank-both', 'rank-people', 'rank-rooms'].indexOf(v) < 0) return err('bad_view');
+      if (v && st.phase !== 'reveal' && st.phase !== 'end') return err('not_now', 'O ranking só pode ser mostrado depois de revelar uma resposta.');
+      st.view = v; return publicState(bump(st), true);
     },
 
     host_close: function () {
@@ -230,7 +272,7 @@ function createEngine(S) {
     host_players: function () {
       var st = S.getState(); if (!st.session) return { ok: true, players: [] };
       var pl = S.getPlayers(st.session);
-      return { ok: true, players: Object.keys(pl).map(function (k) { var w = who(pl, k); return { name: w.n, room: w.r }; }) };
+      return { ok: true, players: Object.keys(pl).map(function (k) { var w = who(pl, k); return { pid: k, name: w.n, room: w.r }; }) };
     },
 
     host_ranking: function () {

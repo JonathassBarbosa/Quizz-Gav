@@ -54,7 +54,7 @@
   .opt { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 76px; padding: 14px 16px; border: 0; border-radius: 20px;
     background: var(--c); color: var(--t); text-align: left; font-size: 1.08rem; font-weight: 600; line-height: 1.25;
     box-shadow: 0 6px 0 rgba(0,0,0,.18); transition: transform .12s, box-shadow .12s, opacity .3s, filter .3s;
-    animation: optIn .5s var(--ease) both; }
+    animation: optIn .3s var(--ease) both; }
   .opt:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,.18); }
   .opt .letter { font-size: 1.1rem; }
   .opts.locked .opt { pointer-events: none; }
@@ -73,6 +73,7 @@
   .stat b { display: block; font-family: var(--serif); font-size: 1.6rem; font-weight: 600; }
   .stat span { font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; opacity: .7; font-weight: 700; }
   .count { font-family: var(--serif); font-size: 5rem; line-height: 1; font-weight: 500; }
+  .final-actions { display: flex; flex-direction: column; gap: 10px; width: min(100%, 340px); margin-top: 6px; }
   .demo-flag { position: fixed; top: 0; left: 50%; transform: translateX(-50%); background: var(--sand); color: var(--navy); font-size: .7rem; font-weight: 800; letter-spacing: .12em; padding: 3px 10px; border-radius: 0 0 8px 8px; z-index: 60; }
   .net { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: var(--bad); color: #fff; font-size: .8rem; font-weight: 700; padding: 6px 12px; border-radius: 99px; z-index: 70; display: none; }
 </style>
@@ -167,6 +168,11 @@
     <span class="caps">Fim do quiz</span>
     <h1 id="finalPos">Você ficou em 1º</h1>
     <p class="muted" id="finalText"></p>
+    <div class="final-actions">
+      <button class="btn sand" id="shareBtn" hidden>📸 Compartilhe esta conquista</button>
+      <button class="btn" id="gabBtn">Baixar gabarito (PDF)</button>
+      <div class="err" id="finalErr"></div>
+    </div>
   </section>
 </main>
 <div class="bg-waves" id="bgWaves"></div>
@@ -176,6 +182,7 @@
 <script src="assets/engine.js"></script>
 <script src="assets/api.js"></script>
 <script src="assets/brand.js"></script>
+<script src="assets/extras.js"></script>
 <script>
 (function () {
   var CFG = window.GAV_CONFIG || {}, API = GAVAPI, L = ['A', 'B', 'C', 'D'];
@@ -263,7 +270,7 @@
     var box = $('opts'); box.innerHTML = ''; box.classList.remove('locked');
     q.options.forEach(function (txt, i) {
       var b = document.createElement('button');
-      b.className = 'opt opt-' + L[i]; b.style.animationDelay = (i * 70) + 'ms';
+      b.className = 'opt opt-' + L[i]; b.style.animationDelay = (i * 40) + 'ms';
       b.innerHTML = '<span class="letter">' + L[i] + '</span><span></span>';
       b.lastChild.textContent = txt;
       b.addEventListener('click', function () { pick(qi, L[i], b, txt); });
@@ -274,15 +281,18 @@
     var box = $('opts'); if (box.classList.contains('locked')) return;
     box.classList.add('locked'); btn.classList.add('picked');
     if (navigator.vibrate) navigator.vibrate(30);
+    // resposta otimista: a tela muda na hora; o envio continua em segundo plano
+    var key = me.session + ':' + qi;
+    answers[key] = letter; save('answers', answers);
+    renderSent(letter, txt); show('sent'); brisa.react('wait', 'Hmm… será? 🤔');
     var tries = 0;
     (function send() {
       API.call('answer', { pid: me.pid, q: qi, choice: letter, name: me.name }).then(function (r) {
-        if (r.ok) {
-          answers[me.session + ':' + qi] = letter; save('answers', answers);
-          setTimeout(function () { renderSent(letter, txt); show('sent'); brisa.react('wait', 'Hmm… será? 🤔'); }, 350);
-        } else if (r.error === 'network' && tries++ < 4) setTimeout(send, 800);
-        else if (r.error === 'time_up' || r.error === 'closed') show('timeup');
-        else { box.classList.remove('locked'); btn.classList.remove('picked'); }
+        if (r.ok) return;
+        if (r.error === 'network' && tries++ < 6) return setTimeout(send, 600);
+        delete answers[key]; save('answers', answers);
+        if (r.error === 'time_up' || r.error === 'closed') show('timeup');
+        else { shownQ = null; screen = ''; render(); }
       });
     })();
   }
@@ -294,36 +304,41 @@
   }
 
   /* ---------- resultado pessoal ---------- */
+  // o resultado já vem junto com o estado (st.res); só busca à parte se faltar
   function fetchResult(qi, final) {
-    var key = final ? 'final' : qi;
+    var key = (final ? 'final' : qi) + ':' + (st && st.session);
     if (resultFor === key) return;
+    if (st && st.res && st.res.me !== undefined) { resultFor = key; showResult(st.res, final); return; }
     resultFor = key;
-    API.call('result', { pid: me.pid, q: qi }).then(function (r) {
-      if (!r.ok) { resultFor = null; return; }
-      var m = r.me || { score: 0, pos: '–', points: 0, correct: false, choice: null };
-      $('scoreChip').hidden = false; $('scoreChip').textContent = (m.hits || 0) + (m.hits === 1 ? ' acerto' : ' acertos');
-      if (final) {
-        $('finalPos').textContent = m.pos ? 'Você ficou em ' + m.pos + 'º' : 'Obrigado por jogar!';
-        $('finalText').textContent = (m.hits || 0) + (m.hits === 1 ? ' acerto' : ' acertos') + ' · ' + r.total + ' participantes' +
-          (m.roomPos ? '\nSua sala, ' + (me.room || m.room) + ', ficou em ' + m.roomPos + 'º de ' + r.rooms + '.' : '');
-        $('finalText').style.whiteSpace = 'pre-line';
-        show('final');
-        if (m.pos && m.pos <= 3) { GAV.confetti(90); brisa.react('right', 'Pódio! Que orgulho! 🏆'); } else brisa.react('hello', 'Valeu por jogar! 🌊');
-        return;
-      }
-      var card = $('resultCard'), right = !!m.correct, ci = L.indexOf(r.correct), opts = st.question.options;
-      card.className = 'result-card ' + (right ? 'right' : 'wrong');
-      $('resIcon').textContent = right ? '✓' : (m.choice ? '✕' : '–');
-      $('resIcon').style.background = right ? 'var(--ok)' : 'var(--bad)';
-      $('resTitle').textContent = right ? 'Acertou!' : (m.choice ? 'Não foi dessa vez' : 'Sem resposta');
-      $('resText').textContent = right ? 'Mandou bem!' : 'Resposta certa: ' + r.correct + ' — ' + (opts[ci] || '');
-      $('resTotal').textContent = m.hits || 0;
-      $('resRoom').textContent = m.roomPos ? m.roomPos + 'º' : '–';
-      $('resPos').textContent = m.pos ? m.pos + 'º' : '–';
-      show('result');
-      if (right) { GAV.confetti(50); brisa.react('right', ['Uhuul! Acertou! 🎉', 'Isso aí!', 'Brilhou! ✨'][Math.floor(Math.random() * 3)]); }
-      else brisa.react('wrong', m.choice ? 'Quase! Na próxima vai 💙' : 'Ei, não esquece de responder!');
-    });
+    API.call('result', { pid: me.pid, q: qi }).then(function (r) { if (!r.ok) { resultFor = null; return; } showResult(r, final); });
+  }
+  var finalInfo = null;
+  function showResult(r, final) {
+    var m = r.me || { score: 0, pos: 0, points: 0, correct: false, choice: null, hits: 0 };
+    $('scoreChip').hidden = false; $('scoreChip').textContent = (m.hits || 0) + (m.hits === 1 ? ' acerto' : ' acertos');
+    if (final) {
+      finalInfo = { pos: m.pos, hits: m.hits || 0, room: me.room || m.room || '', roomPos: m.roomPos, players: r.total, rooms: r.rooms };
+      $('finalPos').textContent = m.pos ? 'Você ficou em ' + m.pos + 'º' : 'Obrigado por jogar!';
+      $('finalText').textContent = (m.hits || 0) + (m.hits === 1 ? ' acerto' : ' acertos') + ' de ' + st.total + ' · ' + r.total + ' participantes' +
+        (m.roomPos ? '\nSua sala, ' + (me.room || m.room) + ', ficou em ' + m.roomPos + 'º de ' + r.rooms + '.' : '');
+      $('finalText').style.whiteSpace = 'pre-line';
+      $('shareBtn').hidden = !(m.pos && m.pos <= 3);
+      show('final');
+      if (m.pos && m.pos <= 3) { GAV.confetti(90); brisa.react('right', 'Pódio! Que orgulho! 🏆'); } else brisa.react('hello', 'Valeu por jogar! 🌊');
+      return;
+    }
+    var card = $('resultCard'), right = !!m.correct, ci = L.indexOf(r.correct), opts = (st.question && st.question.options) || [];
+    card.className = 'result-card ' + (right ? 'right' : 'wrong');
+    $('resIcon').textContent = right ? '✓' : (m.choice ? '✕' : '–');
+    $('resIcon').style.background = right ? 'var(--ok)' : 'var(--bad)';
+    $('resTitle').textContent = right ? 'Acertou!' : (m.choice ? 'Não foi dessa vez' : 'Sem resposta');
+    $('resText').textContent = right ? 'Mandou bem!' : 'Resposta certa: ' + r.correct + ' — ' + (opts[ci] || '');
+    $('resTotal').textContent = m.hits || 0;
+    $('resRoom').textContent = m.roomPos ? m.roomPos + 'º' : '–';
+    $('resPos').textContent = m.pos ? m.pos + 'º' : '–';
+    show('result');
+    if (right) { GAV.confetti(50); brisa.react('right', ['Uhuul! Acertou! 🎉', 'Isso aí!', 'Brilhou! ✨'][Math.floor(Math.random() * 3)]); }
+    else brisa.react('wrong', m.choice ? 'Quase! Na próxima vai 💙' : 'Ei, não esquece de responder!');
   }
 
   /* ---------- ciclo de estado ---------- */
@@ -372,15 +387,32 @@
   var polling = false, fails = 0;
   function tick() {
     if (polling) return; polling = true;
-    API.call('state').then(function (r) {
+    API.call('state', me ? { pid: me.pid } : {}).then(function (r) {
       polling = false;
-      if (r && r.ok) { fails = 0; $('net').style.display = 'none'; var changed = !st || st.v !== r.v || st.phase !== r.phase; st = r; if (changed) resultFor = resultFor; render(); }
+      if (r && r.ok) { fails = 0; $('net').style.display = 'none'; st = r; render(); }
       else if (r && r.error === 'network') { if (++fails > 2) $('net').style.display = 'block'; }
     });
   }
-  function loop() { tick(); setTimeout(loop, API.demo ? 900 : 2000 + Math.random() * 700); }
+  // consulta rápida (≈1,2 s); mais devagar se a tela do celular estiver apagada/em segundo plano
+  function loop() { tick(); setTimeout(loop, document.hidden ? 4000 : (API.demo ? 600 : 1100 + Math.random() * 300)); }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) tick(); });
   loop();
   setInterval(render, 200);  // relógio local (contagem e timer)
+
+  /* ---------- fim do quiz: gabarito e foto do pódio ---------- */
+  $('gabBtn').onclick = function () {
+    var b = this; b.disabled = true; b.textContent = 'Gerando gabarito…'; $('finalErr').textContent = '';
+    API.call('gabarito', { pid: me.pid }).then(function (g) {
+      if (!g.ok) throw new Error(g.message || 'Gabarito indisponível.');
+      // complementa com as respostas guardadas neste celular, se o servidor não tiver
+      g.mine = g.mine.map(function (m, i) { var a = answers[me.session + ':' + i]; return m || (a ? { choice: a, correct: a === g.questions[i].correct } : null); });
+      return GAVX.gabarito(g, { name: me.name, room: me.room, pos: finalInfo && finalInfo.pos, players: finalInfo && finalInfo.players });
+    }).then(function () { b.textContent = 'Baixar gabarito (PDF)'; b.disabled = false; })
+      .catch(function (e) { b.textContent = 'Baixar gabarito (PDF)'; b.disabled = false; $('finalErr').textContent = e.message || 'Não foi possível gerar o gabarito.'; });
+  };
+  $('shareBtn').onclick = function () {
+    GAVX.story({ name: me.name, room: me.room, pos: finalInfo.pos, hits: finalInfo.hits, total: st.total, quiz: st.quiz || CFG.TITLE || 'Quiz GAV' });
+  };
   if (me) { $('nameInput').value = me.name; if (me.room) $('roomInput').value = me.room; }
 })();
 </script>

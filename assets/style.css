@@ -28,7 +28,7 @@ button { font: inherit; cursor: pointer; }
 
 /* screens */
 [data-screen] { display: none; }
-[data-screen].on { display: flex; animation: scrIn .5s var(--ease) both; }
+[data-screen].on { display: flex; animation: scrIn .28s var(--ease) both; }
 @keyframes scrIn { from { opacity: 0; transform: translateY(14px); } }
 
 /* botões */
@@ -50,7 +50,7 @@ button { font: inherit; cursor: pointer; }
   background: var(--off); color: var(--c, var(--navy)); font-family: var(--serif); font-weight: 600; }
 
 /* mascote */
-.brisa { position: fixed; z-index: 50; width: 112px; pointer-events: none; transition: transform .7s cubic-bezier(.34,1.56,.64,1); }
+.brisa { position: fixed; z-index: 50; width: 112px; pointer-events: none; transition: transform .42s cubic-bezier(.34,1.56,.64,1); }
 .brisa[data-side="left"]   { left: 8px;  bottom: 18vh; transform: translateX(-150%); }
 .brisa[data-side="right"]  { right: 8px; bottom: 26vh; transform: translateX(150%); }
 .brisa[data-side="bottom"] { left: 50%; bottom: -6px; margin-left: -56px; transform: translateY(120%); }

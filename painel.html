@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0B306B">
+<title>Quiz GAV — Painel do administrador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  /* Painel privado: fundo claro (diferente do telão azul), barra de controle fixa no topo, conteúdo em cartões */
+  body { background: #F4F1E6; color: var(--navy); font-size: 15px; min-height: 100vh; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-left, 0px)) 40px max(16px, env(safe-area-inset-right, 0px)); }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 500; margin: 0; letter-spacing: -.01em; }
+  .muted { opacity: .65; }
+  .tiny { font-size: .8rem; }
+
+  /* topo */
+  .bar { position: sticky; top: 0; z-index: 20; background: var(--navy); color: var(--off); box-shadow: 0 6px 24px rgba(11,48,107,.25); }
+  .bar-in { max-width: 1280px; margin: 0 auto; padding: 12px max(16px, env(safe-area-inset-left, 0px)) 14px max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+  .bar .mark { width: 64px; flex: none; }
+  .bar .who { display: flex; flex-direction: column; min-width: 0; flex: 1 1 220px; }
+  .bar .who b { font-family: var(--serif); font-weight: 500; font-size: 1.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar .who span { font-size: .78rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; opacity: .7; }
+  .status { display: inline-flex; align-items: center; gap: 8px; padding: .45em .9em; border-radius: 99px; background: rgba(254,249,224,.12); font-weight: 700; font-size: .9rem; white-space: nowrap; }
+  .status i { width: 9px; height: 9px; border-radius: 50%; background: var(--sand); }
+  .status.live i { background: #4FBF8A; box-shadow: 0 0 0 4px rgba(79,191,138,.25); animation: pulse 1.4s infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(79,191,138,0); } }
+  .clock { font-family: var(--serif); font-size: 1.6rem; min-width: 2.4em; text-align: center; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .btn.sm { padding: .6em 1.1em; font-size: .9rem; }
+  .btn.light { background: var(--off); color: var(--navy); }
+  .btn.light:hover { background: #fff; }
+  .btn.outline { background: transparent; color: var(--off); box-shadow: inset 0 0 0 1.5px rgba(254,249,224,.45); }
+  .btn.outline:hover { background: rgba(254,249,224,.1); }
+  .btn.outline.on { background: var(--sand); color: var(--navy); box-shadow: none; }
+  .btn.danger { background: transparent; color: #F2B5A6; box-shadow: inset 0 0 0 1.5px rgba(242,181,166,.5); }
+
+  /* grade */
+  .grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; margin-top: 18px; align-items: start; }
+  .card { background: #fff; border-radius: 20px; padding: 18px 20px; box-shadow: 0 1px 0 rgba(11,48,107,.06), 0 10px 30px rgba(11,48,107,.06); min-width: 0; }
+  .card h3 { font-size: 1.25rem; display: flex; align-items: center; gap: 10px; }
+  .card h3 small { font-family: var(--sans); font-size: .78rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .55; }
+  .card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .card-head h3 { flex: 1; }
+  .span2 { grid-column: 1 / -1; }
+
+  /* pergunta atual */
+  .qtext { font-family: var(--serif); font-size: 1.45rem; line-height: 1.2; margin: 4px 0 14px; text-wrap: balance; }
+  .opt { display: grid; grid-template-columns: 2.1rem minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; position: relative; overflow: hidden; }
+  .opt + .opt { margin-top: 6px; }
+  .opt .bar2 { position: absolute; inset: 0 auto 0 0; background: rgba(11,48,107,.07); transition: width .6s var(--ease); z-index: 0; }
+  .opt > *:not(.bar2) { position: relative; z-index: 1; }
+  .opt .letter { width: 2.1rem; height: 2.1rem; font-size: .95rem; background: var(--c); color: var(--t); }
+  .opt .t { font-weight: 600; }
+  .opt .n { font-family: var(--serif); font-size: 1.2rem; text-align: right; }
+  .opt.right { box-shadow: inset 0 0 0 2px var(--ok); }
+  .opt.right .bar2 { background: rgba(47,125,91,.14); }
+  .tag-ok { font-size: .7rem; font-weight: 800; letter-spacing: .1em; color: var(--ok); text-transform: uppercase; margin-left: 6px; }
+  .progress { display: flex; align-items: center; gap: 12px; margin-top: 14px; font-weight: 700; }
+  .meter { flex: 1; height: 10px; background: rgba(11,48,107,.08); border-radius: 99px; overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0; background: var(--sand); border-radius: 99px; transition: width .5s var(--ease); }
+  .empty { padding: 26px 8px; text-align: center; opacity: .6; line-height: 1.5; }
+
+  /* tabelas */
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; }
+  .in { font: inherit; font-size: .9rem; color: var(--navy); background: #fff; border: 1.5px solid rgba(11,48,107,.18); border-radius: 10px; padding: .5em .7em; outline: none; min-width: 0; }
+  .in:focus { border-color: var(--blue); }
+  .table-wrap { overflow-x: auto; max-height: 520px; overflow-y: auto; border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th { position: sticky; top: 0; background: #fff; text-align: left; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; opacity: .9; padding: 8px 10px; border-bottom: 2px solid rgba(11,48,107,.12); white-space: nowrap; }
+  td { padding: 9px 10px; border-bottom: 1px solid rgba(11,48,107,.07); vertical-align: middle; }
+  td.num, th.num { text-align: right; }
+  tr.pending td { opacity: .55; }
+  .pill { display: inline-flex; align-items: center; justify-content: center; width: 1.9rem; height: 1.9rem; border-radius: 50%; font-family: var(--serif); font-weight: 600; background: var(--c); color: var(--t); }
+  .ok { color: var(--ok); font-weight: 800; } .no { color: var(--bad); font-weight: 800; }
+  .room { font-size: .85rem; opacity: .7; }
+
+  /* abas */
+  .tabs { display: inline-flex; background: rgba(11,48,107,.07); border-radius: 99px; padding: 3px; }
+  .tabs button { border: 0; background: transparent; color: var(--navy); border-radius: 99px; padding: .45em 1em; font-weight: 700; font-size: .85rem; }
+  .tabs button[aria-pressed="true"] { background: var(--navy); color: var(--off); }
+
+  .rooms-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .rchip { background: rgba(11,48,107,.06); border-radius: 99px; padding: .3em .75em; font-size: .85rem; font-weight: 600; }
+  .rchip b { font-family: var(--serif); font-weight: 500; margin-left: 4px; }
+
+  /* login / sem quiz */
+  .center { min-height: 70vh; display: grid; place-items: center; }
+  .login { background: #fff; border-radius: 24px; padding: 28px; width: min(100%, 420px); display: flex; flex-direction: column; gap: 12px; text-align: center; box-shadow: 0 20px 60px rgba(11,48,107,.12); }
+  .login .gav-logo { width: 55%; margin: 0 auto 4px; }
+  .login .in { text-align: center; font-size: 1.05rem; padding: .8em; }
+  .err { color: var(--bad); font-weight: 600; min-height: 1.2em; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--navy); color: var(--off); padding: .7rem 1.2rem; border-radius: 99px; font-weight: 700; z-index: 90; display: none; max-width: 90vw; text-align: center; }
+  .toast.bad { background: var(--bad); color: #fff; }
+
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } .clock { font-size: 1.3rem; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+
+<script src="config.js"></script>
+<script src="assets/brand-vectors.js"></script>
+<script src="assets/engine.js"></script>
+<script src="assets/api.js"></script>
+<script src="assets/brand.js"></script>
+<script>
+(function () {
+  var CFG = window.GAV_CONFIG || {}, API = GAVAPI, L = ['A', 'B', 'C', 'D'];
+  var KEY = sessionStorage.getItem('gavq:key') || (API.demo ? 'demo' : '');
+  var app = document.getElementById('app');
+  var st = null, results = null, players = [], rank = null, rankTab = 'people', authed = false, built = false;
+  var filterRoom = '', filterText = '', busy = false;
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function $(id) { return document.getElementById(id); }
+  function toast(msg, bad) { var t = $('toast'); t.textContent = msg; t.className = 'toast' + (bad ? ' bad' : ''); t.style.display = 'block'; clearTimeout(t._t); t._t = setTimeout(function () { t.style.display = 'none'; }, 3500); }
+  function host(action, p) {
+    return API.call(action, Object.assign({ key: KEY }, p || {})).then(function (r) {
+      if (!r.ok && r.error !== 'network') toast(r.message || r.error, true);
+      return r;
+    });
+  }
+
+  /* ---------- login ---------- */
+  function showLogin(msg) {
+    built = false;
+    app.innerHTML = '<div class="wrap center"><div class="login"><div id="lg"></div>' +
+      '<h2>Painel do administrador</h2><p class="muted tiny">Acompanhe as respostas de cada pessoa e controle o quiz. Use no seu notebook ou celular, não no telão.</p>' +
+      '<input class="in" id="key" type="password" placeholder="Senha do apresentador" autocomplete="current-password">' +
+      '<button class="btn" id="go">Entrar no painel</button><div class="err" id="err">' + esc(msg || '') + '</div></div></div>';
+    GAV.logo($('lg'), { color: GAV.colors.navy });
+    $('key').value = KEY;
+    $('go').onclick = login;
+    $('key').onkeydown = function (e) { if (e.key === 'Enter') login(); };
+  }
+  function login() {
+    KEY = $('key').value.trim(); $('err').textContent = '';
+    API.call('host_check', { key: KEY }).then(function (r) {
+      if (!r.ok) { $('err').textContent = r.error === 'network' ? 'Não foi possível conectar à planilha. Confira a API_URL em config.js.' : 'Senha incorreta.'; return; }
+      sessionStorage.setItem('gavq:key', KEY); authed = true; tick();
+    });
+  }
+
+  /* ---------- estrutura ---------- */
+  function build() {
+    built = true;
+    app.innerHTML =
+      '<header class="bar"><div class="bar-in">' +
+        '<div class="mark" id="mk"></div>' +
+        '<div class="who"><span>Painel do administrador</span><b id="quizName">—</b></div>' +
+        '<span class="status" id="status"><i></i><span id="statusTxt">—</span></span>' +
+        '<span class="clock" id="clock" title="Tempo restante"></span>' +
+        '<div class="actions" id="actions"></div>' +
+      '</div></header>' +
+      '<main class="wrap"><div class="grid">' +
+        '<section class="card" id="qCard"><div class="card-head"><h3 id="qTitle">Pergunta atual</h3></div><div id="qBody"></div></section>' +
+        '<section class="card" id="peopleCard"><div class="card-head"><h3>Participantes <small id="pCount"></small></h3></div><div id="rooms" class="rooms-list"></div></section>' +
+        '<section class="card span2" id="ansCard"><div class="card-head"><h3>Respostas desta pergunta <small id="ansCount"></small></h3>' +
+          '<div class="filters"><select class="in" id="fRoom" aria-label="Filtrar por sala"><option value="">Todas as salas</option></select>' +
+          '<input class="in" id="fText" placeholder="Buscar nome" aria-label="Buscar nome"></div></div>' +
+          '<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Sala</th><th>Resposta</th><th>Resultado</th><th class="num">Tempo</th></tr></thead><tbody id="ansBody"></tbody></table></div></section>' +
+        '<section class="card span2"><div class="card-head"><h3>Ranking</h3>' +
+          '<div class="tabs" role="group" aria-label="Tipo de ranking"><button data-t="people" aria-pressed="true">Individual</button><button data-t="rooms" aria-pressed="false">Salas</button></div></div>' +
+          '<p class="tiny muted" id="rankRule" style="margin:-4px 0 10px">Mais acertos. Empate: quem respondeu mais rápido.</p>' +
+          '<div class="table-wrap" style="max-height:440px"><table><thead id="rankHead"></thead><tbody id="rankBody"></tbody></table></div></section>' +
+      '</div></main>';
+    GAV.logo($('mk'), { color: GAV.colors.off, tagline: false, animate: false });
+    $('fRoom').innerHTML += (CFG.ROOMS || []).map(function (r) { return '<option>' + esc(r) + '</option>'; }).join('');
+    $('fRoom').onchange = function () { filterRoom = this.value; renderAnswers(); };
+    $('fText').oninput = function () { filterText = this.value.trim().toLowerCase(); renderAnswers(); };
+    [].forEach.call(document.querySelectorAll('.tabs button'), function (b) {
+      b.onclick = function () {
+        rankTab = b.dataset.t;
+        [].forEach.call(document.querySelectorAll('.tabs button'), function (x) { x.setAttribute('aria-pressed', x === b); });
+        $('rankRule').textContent = rankTab === 'people' ? 'Mais acertos. Empate: quem respondeu mais rápido.' : 'Maior número total de respostas certas da sala.';
+        renderRank();
+      };
+    });
+  }
+
+  /* ---------- barra de controle ---------- */
+  var PHASE = { lobby: 'Aguardando participantes', question: 'Pergunta aberta', reveal: 'Resposta revelada', end: 'Quiz encerrado — pódio' };
+  function act(action, p) {
+    if (busy) return; busy = true;
+    host(action, p).then(function (r) { busy = false; if (r.ok && r.phase) { st = r; renderAll(); pollResults(); } });
+  }
+  function renderBar() {
+    $('quizName').textContent = st.quiz || CFG.TITLE || 'Quiz GAV';
+    var txt = PHASE[st.phase] || '—';
+    if (st.phase === 'question' || st.phase === 'reveal') txt = 'Pergunta ' + (st.q + 1) + ' de ' + st.total + ' · ' + (st.phase === 'question' ? 'aberta' : 'revelada');
+    if (st.view) txt += ' · telão mostrando ranking';
+    $('statusTxt').textContent = txt;
+    $('status').classList.toggle('live', st.phase === 'question');
+
+    var a = [], last = st.q + 1 >= st.total;
+    if (st.phase === 'lobby') a.push(['btn light sm', 'Começar quiz ▸', function () { act('host_next'); }]);
+    if (st.phase === 'question') a.push(['btn light sm', 'Revelar resposta', function () { act('host_reveal'); }]);
+    if (st.phase === 'reveal') {
+      a.push(['btn light sm', last ? 'Ver pódio ▸' : 'Próxima pergunta ▸', function () { act(last ? 'host_end' : 'host_next'); }]);
+      a.push(viewBtn('rank-people', 'Telão: ranking individual'));
+      a.push(viewBtn('rank-rooms', 'Telão: ranking das salas'));
+      if (st.view) a.push(['btn outline sm', 'Telão: voltar à pergunta', function () { act('host_view', { view: '' }); }]);
+    }
+    if (st.phase === 'end') {
+      a.push(['btn outline sm' + (!st.view ? ' on' : ''), 'Telão: pódio', function () { act('host_view', { view: '' }); }]);
+      a.push(viewBtn('rank-people', 'Telão: ranking individual'));
+      a.push(viewBtn('rank-rooms', 'Telão: ranking das salas'));
+      a.push(['btn danger sm', 'Encerrar quiz', confirmClose]);
+    }
+    var box = $('actions'); box.innerHTML = '';
+    a.forEach(function (x) { var b = document.createElement('button'); b.className = x[0]; b.textContent = x[1]; b.onclick = x[2]; box.appendChild(b); });
+  }
+  function viewBtn(v, label) { return ['btn outline sm' + (st.view === v ? ' on' : ''), label, function () { act('host_view', { view: st.view === v ? '' : v }); }]; }
+  function confirmClose() {
+    var b = this; if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'Clique de novo para encerrar'; setTimeout(function () { if (b.isConnected) { delete b.dataset.sure; b.textContent = 'Encerrar quiz'; } }, 3000); return; }
+    act('host_close');
+  }
+  function renderClock() {
+    var c = $('clock'); if (!c) return;
+    if (!st || st.phase !== 'question') { c.textContent = ''; return; }
+    var now = API.now();
+    if (now < st.startedAt) { c.textContent = '…'; return; }
+    if (!st.endsAt) { c.textContent = '∞'; c.title = 'Sem limite de tempo'; return; }
+    c.textContent = Math.max(0, Math.ceil((st.endsAt - now) / 1000)) + 's';
+  }
+
+  /* ---------- pergunta atual ---------- */
+  function renderQuestion() {
+    var body = $('qBody');
+    if (st.phase === 'lobby') { $('qTitle').textContent = 'Pergunta atual'; body.innerHTML = '<div class="empty">O quiz ainda não começou.<br>Quando todos tiverem entrado, clique em <b>Começar quiz</b>.</div>'; return; }
+    if (st.phase === 'end') { $('qTitle').textContent = 'Fim do quiz'; body.innerHTML = '<div class="empty">Todas as ' + st.total + ' perguntas foram respondidas.<br>Use os botões no topo para mostrar o pódio ou os rankings no telão.</div>'; return; }
+    var q = st.question; if (!q) return;
+    $('qTitle').innerHTML = 'Pergunta ' + (st.q + 1) + ' <small>de ' + st.total + '</small>';
+    var counts = results && results.q === st.q ? results.counts : q.options.map(function () { return 0; });
+    var correct = results && results.q === st.q ? results.correct : st.correct;
+    var mx = Math.max.apply(null, counts.concat([1]));
+    body.innerHTML = '<div class="qtext">' + esc(q.text) + '</div>' + q.options.map(function (t, i) {
+      var right = L[i] === correct;
+      return '<div class="opt opt-' + L[i] + (right ? ' right' : '') + '"><div class="bar2" style="width:' + (counts[i] / mx * 100) + '%"></div>' +
+        '<span class="letter">' + L[i] + '</span><span class="t">' + esc(t) + (right ? '<span class="tag-ok">✓ correta</span>' : '') + '</span><span class="n">' + (counts[i] || 0) + '</span></div>';
+    }).join('') +
+      '<div class="progress"><span id="prog">' + (results ? results.answered : 0) + ' de ' + Math.max(players.length, results ? results.answered : 0) + ' responderam</span><div class="meter"><i style="width:' +
+      (players.length ? Math.min(100, (results ? results.answered : 0) / players.length * 100) : 0) + '%"></i></div></div>';
+  }
+
+  /* ---------- participantes ---------- */
+  function renderPeople() {
+    $('pCount').textContent = players.length + (players.length === 1 ? ' pessoa' : ' pessoas');
+    var by = {}; players.forEach(function (p) { by[p.room || 'Sem sala'] = (by[p.room || 'Sem sala'] || 0) + 1; });
+    var keys = Object.keys(by).sort(function (a, b) { return by[b] - by[a] || a.localeCompare(b); });
+    $('rooms').innerHTML = keys.length ? keys.map(function (k) { return '<span class="rchip">' + esc(k) + '<b>' + by[k] + '</b></span>'; }).join('') : '<div class="empty" style="width:100%">Ninguém entrou ainda. O QR code está no telão.</div>';
+  }
+
+  /* ---------- respostas (todas, inclusive quem falta) ---------- */
+  function renderAnswers() {
+    var body = $('ansBody'); if (!body) return;
+    if (!st || !(st.phase === 'question' || st.phase === 'reveal')) { $('ansCount').textContent = ''; body.innerHTML = '<tr><td colspan="5" class="empty">As respostas aparecem aqui quando uma pergunta estiver aberta.</td></tr>'; return; }
+    var ans = results && results.q === st.q ? results.answers : [], byPid = {};
+    ans.forEach(function (a) { byPid[a.pid] = a; });
+    var rows = ans.slice();
+    players.forEach(function (p) { if (!byPid[p.pid]) rows.push({ pid: p.pid, name: p.name, room: p.room, pending: true }); });
+    var open = st.phase === 'question';
+    rows = rows.filter(function (r) { return (!filterRoom || r.room === filterRoom) && (!filterText || String(r.name).toLowerCase().indexOf(filterText) >= 0); });
+    var missing = players.length - ans.length;
+    $('ansCount').textContent = ans.length + ' responderam' + (missing > 0 ? ' · ' + missing + (missing === 1 ? ' falta' : ' faltam') : '');
+    body.innerHTML = rows.map(function (r) {
+      if (r.pending) return '<tr class="pending"><td>' + esc(r.name) + '</td><td class="room">' + esc(r.room) + '</td><td colspan="2">' + (open ? 'ainda não respondeu' : 'não respondeu') + '</td><td class="num">—</td></tr>';
+      return '<tr><td><b>' + esc(r.name) + '</b></td><td class="room">' + esc(r.room) + '</td><td><span class="pill opt-' + r.choice + '">' + r.choice + '</span></td>' +
+        '<td>' + (r.correct ? '<span class="ok">✓ acertou</span>' : '<span class="no">✕ errou</span>') + '</td><td class="num">' + (r.ms / 1000).toFixed(1) + ' s</td></tr>';
+    }).join('') || '<tr><td colspan="5" class="empty">Nenhum participante encontrado com esse filtro.</td></tr>';
+  }
+
+  /* ---------- ranking ---------- */
+  function renderRank() {
+    var head = $('rankHead'), body = $('rankBody'); if (!head) return;
+    if (!rank) { head.innerHTML = ''; body.innerHTML = '<tr><td class="empty">O ranking aparece depois da primeira pergunta.</td></tr>'; return; }
+    if (rankTab === 'people') {
+      head.innerHTML = '<tr><th>#</th><th>Nome</th><th>Sala</th><th class="num">Acertos</th><th class="num">Tempo nos acertos</th></tr>';
+      body.innerHTML = rank.ranking.map(function (m) { return '<tr><td><b>' + m.pos + 'º</b></td><td>' + esc(m.name) + '</td><td class="room">' + esc(m.room) + '</td><td class="num"><b>' + m.hits + '</b></td><td class="num">' + (m.hits ? (m.ms / 1000).toFixed(1) + ' s' : '—') + '</td></tr>'; }).join('') || '<tr><td colspan="5" class="empty">Sem participantes.</td></tr>';
+    } else {
+      head.innerHTML = '<tr><th>#</th><th>Sala</th><th class="num">Pessoas</th><th class="num">Respostas certas</th></tr>';
+      body.innerHTML = rank.rooms.map(function (r) { return '<tr><td><b>' + r.pos + 'º</b></td><td>' + esc(r.room) + '</td><td class="num">' + r.people + '</td><td class="num"><b>' + r.hits + '</b></td></tr>'; }).join('') || '<tr><td colspan="4" class="empty">Sem salas.</td></tr>';
+    }
+  }
+
+  function renderAll() {
+    if (!built) build();
+    renderBar(); renderQuestion(); renderPeople(); renderAnswers(); renderRank(); renderClock();
+  }
+
+  function renderNoQuiz() {
+    built = false;
+    app.innerHTML = '<div class="wrap center"><div class="login"><div id="lg"></div><h2>Nenhum quiz em andamento</h2>' +
+      '<p class="muted">Abra a <b>tela do palestrante</b> (host.html) no computador do telão, escolha o quiz e clique em <b>Iniciar quiz</b>. Este painel se atualiza sozinho quando o quiz começar.</p>' +
+      '<a class="btn" href="host.html" target="_blank" rel="noopener" style="text-decoration:none">Abrir a tela do palestrante</a></div></div>';
+    GAV.logo($('lg'), { color: GAV.colors.navy });
+  }
+
+  /* ---------- atualização ---------- */
+  var lastKey = '';
+  function tick() {
+    if (!authed) return;
+    API.call('state').then(function (r) {
+      if (!r || !r.ok) return;
+      var changed = !st || st.v !== r.v;
+      st = r;
+      if (st.phase === 'off' || !st.session) { if (lastKey !== 'off') { lastKey = 'off'; renderNoQuiz(); } return; }
+      lastKey = st.session;
+      if (changed || !built) { renderAll(); pollPlayers(); pollResults(); pollRank(); }
+    });
+  }
+  function pollPlayers() { if (!authed || !st || !st.session || st.phase === 'off') return; host('host_players').then(function (r) { if (r.ok) { players = r.players; if (built) { renderPeople(); renderAnswers(); renderQuestion(); } } }); }
+  function pollResults() {
+    if (!authed || !st || !(st.phase === 'question' || st.phase === 'reveal')) return;
+    host('host_results', { q: st.q }).then(function (r) { if (r.ok && st && r.q === st.q) { results = r; if (built) { renderQuestion(); renderAnswers(); } } });
+  }
+  function pollRank() { if (!authed || !st || !st.session || st.phase === 'lobby' || st.phase === 'off') return; host('host_ranking').then(function (r) { if (r.ok) { rank = r; if (built) renderRank(); } }); }
+
+  setInterval(tick, API.demo ? 800 : 1600);
+  setInterval(function () { if (st && st.phase === 'question') pollResults(); }, API.demo ? 900 : 2000);
+  setInterval(pollPlayers, API.demo ? 1500 : 3500);
+  setInterval(pollRank, API.demo ? 2500 : 6000);
+  setInterval(renderClock, 250);
+
+  // entra direto se a senha já foi digitada nesta aba
+  if (KEY) { API.call('host_check', { key: KEY }).then(function (r) { if (r.ok) { authed = true; tick(); } else showLogin(); }); }
+  else showLogin();
+  if (API.demo) document.body.insertAdjacentHTML('beforeend', '<div class="demo-flag" style="position:fixed;bottom:0;left:50%;transform:translateX(-50%);background:var(--sand);color:var(--navy);font-size:.7rem;font-weight:800;letter-spacing:.12em;padding:3px 12px;border-radius:8px 8px 0 0;z-index:60">MODO DEMONSTRAÇÃO · senha: demo</div>');
+})();
+</script>
+</body>
+</html>

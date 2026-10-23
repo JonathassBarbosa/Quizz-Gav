@@ -65,6 +65,9 @@
   .opt-ed input[type=radio]:focus-visible + .mk { outline: 3px solid var(--sand); outline-offset: 2px; }
   .opt-ed .in { padding: .55em .7em; }
   .hint { font-size: .78rem; opacity: .6; }
+  details.extra summary { cursor: pointer; font-size: .8rem; font-weight: 700; opacity: .7; padding: .2rem 0; }
+  details.extra[open] summary { margin-bottom: .45rem; }
+  .extra-grid { display: grid; grid-template-columns: 1fr 2fr; gap: .5rem; }
   .addq { border: 2px dashed rgba(11,48,107,.25); background: transparent; color: var(--navy); border-radius: 16px; padding: .9rem; font-weight: 700; }
   .addq:hover { border-color: var(--blue); background: rgba(5,63,155,.05); }
   .paste { display: flex; flex-direction: column; gap: .5rem; background: rgba(11,48,107,.05); border-radius: 16px; padding: .9rem; }
@@ -249,7 +252,7 @@
           </div>
           <div class="paste" id="pasteBox" hidden style="margin-top:.9rem">
             <b>Colar perguntas</b>
-            <span class="hint">Uma pergunta por linha, colunas separadas por TAB (copiado do Excel/Sheets) ou ponto e vírgula:<br>Pergunta ; A ; B ; C ; D ; Correta (letra)</span>
+            <span class="hint">Uma pergunta por linha, colunas separadas por TAB (copiado do Excel/Sheets) ou ponto e vírgula:<br>Pergunta ; A ; B ; C ; D ; Correta (letra) ; Seção (opcional) ; Explicação (opcional)</span>
             <textarea class="in" id="pasteText" rows="5" placeholder="Qual é a capital do Brasil?;São Paulo;Brasília;Rio de Janeiro;Salvador;B"></textarea>
             <div style="display:flex;gap:.5rem"><button class="btn sm" id="pasteAdd">Adicionar ao quiz</button><button class="btn ghost sm" id="pasteCancel">Cancelar</button></div>
           </div>
@@ -363,7 +366,7 @@
 
 <aside class="drawer" id="drawer" aria-label="Respostas individuais">
   <header><h3>Respostas</h3><span class="caps" id="drawerCount"></span><button class="xbtn" id="drawerClose" aria-label="Fechar">✕</button></header>
-  <p class="privacy" id="privacy">Atenção: se esta tela estiver projetada, todos verão. Para ver em particular, abra <b>host.html?painel=1</b> no seu notebook/celular.</p>
+  <p class="privacy" id="privacy">Atenção: se esta tela estiver projetada, todos verão. Para ver em particular, abra <b>painel.html</b> no seu notebook ou celular.</p>
   <div class="list" id="alist"></div>
 </aside>
 
@@ -377,7 +380,9 @@
 (function () {
   var CFG = window.GAV_CONFIG || {}, API = GAVAPI, L = ['A', 'B', 'C', 'D'];
   var $ = function (id) { return document.getElementById(id); };
-  var PANEL = new URLSearchParams(location.search).get('painel') === '1';
+  // o painel do administrador agora é uma página própria
+  if (new URLSearchParams(location.search).get('painel') === '1') { location.replace('painel.html' + (API.demo ? '?demo=1' : '')); return; }
+  var PANEL = false;
   var KEY = sessionStorage.getItem('gavq:key') || (API.demo ? 'demo' : '');
   var st = null, screen = '', results = null, lastQ = null, revealedQ = null, rankView = false, revealing = false;
   var title = CFG.TITLE || 'Quiz GAV';
@@ -445,6 +450,10 @@
   }
   function reveal() {
     if (revealing || !st || st.phase !== 'question') return; revealing = true;
+    // revelação instantânea no telão: já temos a contagem e a resposta certa (vinda do host_results)
+    if (results && results.q === st.q && results.correct) {
+      st = Object.assign({}, st, { phase: 'reveal', correct: results.correct }); render(); updateCounts();
+    }
     host('host_reveal').then(function (r) { revealing = false; apply(r); });
   }
   function apply(r) { if (r && r.ok && r.phase) { st = r; render(); pollResults(); } }
@@ -470,7 +479,7 @@
     host('host_ranking').then(function (r) {
       if (!r.ok) return;
       var done = r.questionsDone || 0;
-      $('rankEyebrow').textContent = st && st.phase === 'end' ? 'Resultado final' : 'Parcial · ' + done + ' de ' + (st ? st.total : done) + (done === 1 ? ' pergunta' : ' perguntas');
+      $('rankEyebrow').textContent = st && st.phase === 'end' ? 'Resultado final' : 'Parcial · ' + done + ' de ' + (st ? st.total : done) + ' perguntas';
       $('rankList').innerHTML = r.ranking.slice(0, 10).map(function (m, i) {
         return '<div class="rrow" style="animation-delay:' + (i * 70) + 'ms"><span class="pos">' + m.pos + '</span><span class="who2"><span>' + esc(m.name) + '</span><small>' + esc(m.room || '') + '</small></span>' +
           '<b>' + m.hits + '<small>' + (m.hits === 1 ? 'acerto' : 'acertos') + (m.hits ? ' · ' + (m.ms / 1000).toFixed(1) + ' s' : '') + '</small></b></div>';
@@ -550,7 +559,7 @@
     });
   }
 
-  var endShown = null;
+  var endShown = null, lastRemoteView = '';
   function render() {
     if (!st) return;
     if (!authed) {
@@ -568,6 +577,13 @@
     if (st.phase === 'question' && now < st.startedAt && $('preroll').dataset.q !== String(st.q)) {
       $('preroll').dataset.q = st.q; $('prerollTitle').textContent = 'Pergunta ' + (st.q + 1) + ' de ' + st.total;
       preSym.unfold(1700);
+    }
+    // o painel do administrador pode mandar o telão mostrar o ranking
+    var rv = (st.phase === 'reveal' || st.phase === 'end') ? (st.view || '') : '';
+    if (rv !== lastRemoteView) {
+      lastRemoteView = rv;
+      if (rv) { setRankMode(rv.replace('rank-', '')); showRanking(); }
+      else if (rankView) { rankView = false; screen = ''; }
     }
     if (st.phase === 'lobby') {
       $('lobbyTitle').textContent = st.quiz || title; $('lobbyEyebrow').textContent = title + (st.timed ? ' · ' + st.secs + ' s por pergunta' : ' · sem limite de tempo');
@@ -589,7 +605,7 @@
         $('timerArc').setAttribute('stroke', left < 5000 ? '#E27C6B' : 'var(--sand)');
         // revelação automática: tempo acabou ou todos responderam
         var all = results && results.players > 0 && results.answered >= results.players;
-        if ((now > st.endsAt + 1500 || (all && now > st.startedAt)) && !PANEL) reveal();
+        if ((now > st.endsAt + 600 || (all && now > st.startedAt)) && !PANEL) reveal();
       } else { $('timerNum').textContent = '0'; $('timerArc').setAttribute('stroke-dashoffset', '100'); }
     }
   }
@@ -597,7 +613,7 @@
   /* ---------- editor de quizzes ---------- */
   var ed = null, lib = [], timerCfg = { on: true, secs: 20 };
   try { var tc = JSON.parse(localStorage.getItem('gavq:timer') || 'null'); if (tc) timerCfg = tc; } catch (e) {}
-  function blankQ() { return { text: '', options: ['', '', '', ''], correct: '' }; }
+  function blankQ() { return { text: '', options: ['', '', '', ''], correct: '', section: '', note: '' }; }
   function loadLib(openFirst) {
     host('host_quizzes').then(function (r) {
       if (!r.ok) return;
@@ -614,7 +630,7 @@
   function openQuiz(name) {
     host('host_quiz_get', { name: name }).then(function (r) {
       if (!r.ok) return;
-      ed = { name: r.name, saved: r.name, questions: r.questions.map(function (q) { return { text: q.text, options: q.options.concat(['', '', '', '']).slice(0, 4), correct: q.correct }; }) };
+      ed = { name: r.name, saved: r.name, questions: r.questions.map(function (q) { return { text: q.text, options: q.options.concat(['', '', '', '']).slice(0, 4), correct: q.correct, section: q.section || '', note: q.note || '' }; }) };
       renderEditor(); renderLib();
     });
   }
@@ -639,11 +655,16 @@
             '<label class="mk" for="' + id + '" title="Marcar ' + l + ' como correta">' + l + '</label>' +
             '<input class="in" data-o="' + k + '" maxlength="140" placeholder="Alternativa ' + l + (k > 1 ? ' (opcional)' : '') + '" value="' + esc(q.options[k] || '') + '"></div>';
         }).join('') + '</div>' +
-        '<span class="hint">Clique na letra para marcar a alternativa correta.</span></div>';
+        '<span class="hint">Clique na letra para marcar a alternativa correta.</span>' +
+        '<details class="extra"' + (q.section || q.note ? ' open' : '') + '><summary>Gabarito: seção e explicação (opcional)</summary>' +
+        '<div class="extra-grid"><input class="in" data-f="section" maxlength="60" placeholder="Seção (ex.: Modelos de venda)" value="' + esc(q.section || '') + '">' +
+        '<input class="in" data-f="note" maxlength="240" placeholder="Explicação que aparece no gabarito" value="' + esc(q.note || '') + '"></div></details></div>';
     }).join('');
     [].forEach.call($('qcards').children, function (card) {
       var i = Number(card.dataset.i), q = ed.questions[i];
       card.querySelector('[data-f=text]').oninput = function () { q.text = this.value; card.classList.remove('bad'); };
+      card.querySelector('[data-f=section]').oninput = function () { q.section = this.value; };
+      card.querySelector('[data-f=note]').oninput = function () { q.note = this.value; };
       [].forEach.call(card.querySelectorAll('[data-o]'), function (inp) { inp.oninput = function () { q.options[Number(inp.dataset.o)] = this.value; card.classList.remove('bad'); }; });
       [].forEach.call(card.querySelectorAll('input[type=radio]'), function (r) { r.onchange = function () { q.correct = r.value; card.classList.remove('bad'); }; });
       [].forEach.call(card.querySelectorAll('[data-a]'), function (b) {
@@ -674,7 +695,7 @@
       if (c.length < 3) return;
       var correct = (c[5] || '').toUpperCase().charAt(0);
       if (/^pergunta$/i.test(c[0])) return; // cabeçalho
-      ed.questions.push({ text: c[0], options: [c[1] || '', c[2] || '', c[3] || '', c[4] || ''], correct: 'ABCD'.indexOf(correct) >= 0 ? correct : '' });
+      ed.questions.push({ text: c[0], options: [c[1] || '', c[2] || '', c[3] || '', c[4] || ''], correct: 'ABCD'.indexOf(correct) >= 0 ? correct : '', section: c[6] || '', note: c[7] || '' });
       added++;
     });
     // remove a pergunta em branco inicial, se houver
@@ -726,7 +747,7 @@
   function save() {
     var msg = validate(); if (msg) { $('edErr').textContent = msg; return Promise.resolve(false); }
     var name = ed.name.trim();
-    var qs = ed.questions.map(function (q) { return { text: q.text.trim(), options: q.options.map(function (o) { return o.trim(); }), correct: q.correct }; });
+    var qs = ed.questions.map(function (q) { return { text: q.text.trim(), options: q.options.map(function (o) { return o.trim(); }), correct: q.correct, section: (q.section || '').trim(), note: (q.note || '').trim() }; });
     $('saveBtn').disabled = $('launchBtn').disabled = true;
     return host('host_quiz_save', { name: name, questions: JSON.stringify(qs) }, { post: true }).then(function (r) {
       $('saveBtn').disabled = $('launchBtn').disabled = false;
@@ -759,8 +780,9 @@
   function pollState() {
     API.call('state').then(function (r) {
       if (r && r.ok) {
-        var first = !st; st = r;
-        render();
+        // enquanto a revelação otimista está sendo gravada, ignora o estado antigo
+        if (revealing && st && st.phase === 'reveal' && r.phase === 'question' && r.q === st.q) return;
+        st = r; render();
       }
     });
   }
@@ -787,17 +809,12 @@
     var q = st.q;
     host('host_results', { q: q }).then(function (r) { if (r.ok && st && r.q === st.q) { results = r; updateCounts(); } });
   }
-  setInterval(pollState, API.demo ? 700 : 1500);
+  setInterval(pollState, API.demo ? 500 : 1000);
   setInterval(pollPlayers, API.demo ? 800 : 2200);
-  setInterval(pollResults, API.demo ? 800 : 1800);
+  setInterval(pollResults, API.demo ? 600 : 1300);
   setInterval(render, 200);
   pollState();
 
-  if (PANEL) {
-    document.body.classList.add('panel');
-    $('privacy').textContent = 'Painel privado do apresentador — mostra a escolha de cada participante em tempo real.';
-    $('drawer').classList.add('on');
-  }
 })();
 </script>
 </body>
