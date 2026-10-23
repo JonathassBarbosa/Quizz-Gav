@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0B306B">
+<title>Quiz GAV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  body { min-height: 100dvh; display: flex; flex-direction: column; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: max(14px, env(safe-area-inset-top)) 18px 10px; position: relative; z-index: 3; }
+  .top .mark { width: 74px; }
+  .chip { background: var(--navy); color: var(--off); border-radius: 999px; padding: .45em .9em; font-weight: 700; font-size: .85rem; white-space: nowrap; max-width: 60vw; overflow: hidden; text-overflow: ellipsis; }
+  .chip.sand { background: var(--sand); color: var(--navy); }
+  main { flex: 1; position: relative; z-index: 2; display: flex; }
+  [data-screen] { flex: 1; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 8px 22px 24vh; gap: 16px; }
+  .bg-waves { position: fixed; left: 0; right: 0; bottom: 0; height: 22vh; z-index: 1; opacity: .95; pointer-events: none; }
+  h1, h2 { font-family: var(--serif); font-weight: 500; margin: 0; line-height: 1.08; letter-spacing: -.01em; }
+  h1 { font-size: clamp(2rem, 9vw, 2.8rem); }
+  h2 { font-size: clamp(1.5rem, 7vw, 2.1rem); }
+  p { margin: 0; line-height: 1.45; }
+  .muted { opacity: .72; }
+
+  /* splash / entrar */
+  .splash-logo { width: min(70vw, 300px); margin-bottom: 4px; }
+  form.join { width: min(100%, 360px); display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+  .field { width: 100%; font: inherit; font-size: 1.15rem; padding: .95em 1.1em; border-radius: 16px; border: 2px solid rgba(11,48,107,.22);
+    background: #fff; color: var(--navy); outline: none; text-align: center; transition: border-color .2s; }
+  .field:focus { border-color: var(--blue); }
+  .lbl { text-align: left; font-size: .78rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; margin: 4px 0 -4px 6px; }
+  .select-wrap { position: relative; }
+  .select-wrap::after { content: ''; position: absolute; right: 20px; top: 50%; width: 10px; height: 10px; margin-top: -7px;
+    border-right: 2.5px solid var(--navy); border-bottom: 2.5px solid var(--navy); transform: rotate(45deg); pointer-events: none; }
+  select.field { appearance: none; -webkit-appearance: none; text-align: left; text-align-last: left; padding-right: 2.6em; cursor: pointer; }
+  select.field:invalid { color: rgba(11,48,107,.5); }
+  input.field { text-align: left; }
+  .field.bad { border-color: var(--bad); }
+  .room-tag { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; font-weight: 700; letter-spacing: .04em; padding: .35em .8em; border-radius: 99px; background: rgba(11,48,107,.08); }
+  .err { color: var(--bad); font-weight: 600; min-height: 1.3em; font-size: .95rem; }
+
+  .sym { width: 120px; }
+  .sym.big { width: 170px; }
+
+  /* pergunta */
+  [data-screen="question"] { justify-content: flex-start; padding-top: 4px; gap: 12px; }
+  .qhead { width: 100%; display: flex; align-items: center; justify-content: space-between; }
+  .timer { position: relative; width: 58px; height: 58px; }
+  .timer svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .timer b { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--serif); font-size: 1.35rem; font-weight: 600; }
+  .hint { font-size: .95rem; }
+  .opts { width: 100%; display: grid; gap: 12px; margin-top: 2px; }
+  .opt { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 76px; padding: 14px 16px; border: 0; border-radius: 20px;
+    background: var(--c); color: var(--t); text-align: left; font-size: 1.08rem; font-weight: 600; line-height: 1.25;
+    box-shadow: 0 6px 0 rgba(0,0,0,.18); transition: transform .12s, box-shadow .12s, opacity .3s, filter .3s;
+    animation: optIn .5s var(--ease) both; }
+  .opt:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,.18); }
+  .opt .letter { font-size: 1.1rem; }
+  .opts.locked .opt { pointer-events: none; }
+  .opts.locked .opt:not(.picked) { opacity: .25; filter: saturate(.3); }
+  .opt.picked { transform: scale(1.02); box-shadow: 0 0 0 4px var(--off), 0 0 0 7px var(--c); }
+  @keyframes optIn { from { opacity: 0; transform: translateY(18px) scale(.97); } }
+
+  .pick-badge { display: inline-flex; align-items: center; gap: 12px; padding: 12px 18px 12px 12px; border-radius: 18px; background: var(--c); color: var(--t); font-weight: 600; font-size: 1.05rem; text-align: left; max-width: 100%; }
+
+  .result-card { width: min(100%, 360px); background: #fff; border-radius: 26px; padding: 22px; box-shadow: 0 18px 40px rgba(11,48,107,.12); display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .result-card.right { box-shadow: 0 0 0 3px var(--ok), 0 18px 40px rgba(11,48,107,.12); }
+  .result-card.wrong { box-shadow: 0 0 0 3px var(--bad), 0 18px 40px rgba(11,48,107,.12); }
+  .big-icon { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 2rem; font-weight: 800; }
+  .stats { display: flex; gap: 10px; width: 100%; }
+  .stat { flex: 1; background: var(--off); border-radius: 16px; padding: 10px 8px; }
+  .stat b { display: block; font-family: var(--serif); font-size: 1.6rem; font-weight: 600; }
+  .stat span { font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; opacity: .7; font-weight: 700; }
+  .count { font-family: var(--serif); font-size: 5rem; line-height: 1; font-weight: 500; }
+  .demo-flag { position: fixed; top: 0; left: 50%; transform: translateX(-50%); background: var(--sand); color: var(--navy); font-size: .7rem; font-weight: 800; letter-spacing: .12em; padding: 3px 10px; border-radius: 0 0 8px 8px; z-index: 60; }
+  .net { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: var(--bad); color: #fff; font-size: .8rem; font-weight: 700; padding: 6px 12px; border-radius: 99px; z-index: 70; display: none; }
+</style>
+</head>
+<body>
+<div class="net" id="net">Reconectando…</div>
+<header class="top">
+  <div class="mark" id="topMark"></div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span class="chip sand" id="scoreChip" hidden>0 pts</span>
+    <span class="chip" id="nameChip" hidden></span>
+  </div>
+</header>
+
+<main>
+  <!-- entrada -->
+  <section data-screen="join">
+    <div class="splash-logo" id="splashLogo"></div>
+    <h1 id="quizTitle">Quiz GAV</h1>
+    <p class="muted">Selecione sua sala e digite seu nome completo.<br>Só você vê as suas respostas.</p>
+    <form class="join" id="joinForm" autocomplete="off">
+      <label class="lbl" for="roomInput">Sua sala</label>
+      <div class="select-wrap"><select class="field" id="roomInput" required><option value="" disabled selected>Selecione a sala</option></select></div>
+      <label class="lbl" for="nameInput">Nome completo</label>
+      <input class="field" id="nameInput" maxlength="60" placeholder="Nome e sobrenome" autocomplete="name" autocapitalize="words" required>
+      <button class="btn" type="submit" id="joinBtn">Entrar no quiz</button>
+      <div class="err" id="joinErr" role="alert"></div>
+    </form>
+  </section>
+
+  <!-- aguardando abrir / lobby -->
+  <section data-screen="lobby">
+    <div class="sym big" id="lobbySym"></div>
+    <h2 id="lobbyTitle">Você está dentro!</h2>
+    <span class="room-tag" id="lobbyRoom" hidden></span>
+    <p class="muted" id="lobbyText">Fique de olho na tela do apresentador.<br>O quiz começa em instantes.</p>
+  </section>
+
+  <!-- preparação (transição antes da pergunta) -->
+  <section data-screen="ready">
+    <span class="caps" id="readyLabel">Pergunta 1</span>
+    <div class="count" id="readyCount">3</div>
+    <p class="muted">Leia a pergunta na tela do apresentador</p>
+  </section>
+
+  <!-- pergunta: opções no celular -->
+  <section data-screen="question">
+    <div class="qhead">
+      <div style="text-align:left">
+        <div class="caps" id="qLabel">Pergunta 1 de 5</div>
+        <div class="hint muted">Veja a pergunta na tela principal</div>
+      </div>
+      <div class="timer" aria-label="Tempo restante">
+        <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="26" fill="none" stroke="rgba(11,48,107,.14)" stroke-width="6"/>
+          <circle id="timerArc" cx="30" cy="30" r="26" fill="none" stroke="var(--sand)" stroke-width="6" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="0"/></svg>
+        <b id="timerNum">20</b>
+      </div>
+    </div>
+    <div class="opts" id="opts"></div>
+  </section>
+
+  <!-- resposta enviada -->
+  <section data-screen="sent">
+    <span class="caps">Resposta registrada</span>
+    <div id="sentPick"></div>
+    <p class="muted">Aguarde o apresentador revelar a resposta certa.</p>
+  </section>
+
+  <!-- tempo esgotado sem resposta -->
+  <section data-screen="timeup">
+    <h2>Tempo esgotado!</h2>
+    <p class="muted">Essa passou. Prepare-se para a próxima.</p>
+  </section>
+
+  <!-- resultado pessoal -->
+  <section data-screen="result">
+    <div class="result-card" id="resultCard">
+      <div class="big-icon" id="resIcon">✓</div>
+      <h2 id="resTitle">Acertou!</h2>
+      <p class="muted" id="resText"></p>
+      <div class="stats">
+        <div class="stat"><b id="resTotal">0</b><span>acertos</span></div>
+        <div class="stat"><b id="resPos">–</b><span>sua posição</span></div>
+        <div class="stat"><b id="resRoom">–</b><span>sua sala</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- final -->
+  <section data-screen="final">
+    <div class="sym big" id="finalSym"></div>
+    <span class="caps">Fim do quiz</span>
+    <h1 id="finalPos">Você ficou em 1º</h1>
+    <p class="muted" id="finalText"></p>
+  </section>
+</main>
+<div class="bg-waves" id="bgWaves"></div>
+
+<script src="config.js"></script>
+<script src="assets/brand-vectors.js"></script>
+<script src="assets/engine.js"></script>
+<script src="assets/api.js"></script>
+<script src="assets/brand.js"></script>
+<script>
+(function () {
+  var CFG = window.GAV_CONFIG || {}, API = GAVAPI, L = ['A', 'B', 'C', 'D'];
+  var $ = function (id) { return document.getElementById(id); };
+  var store = API.demo ? sessionStorage : localStorage;   // demo: cada aba é um participante
+  function load(k, d) { try { return JSON.parse(store.getItem('gavq:' + k)) || d; } catch (e) { return d; } }
+  function save(k, v) { try { store.setItem('gavq:' + k, JSON.stringify(v)); } catch (e) {} }
+
+  if (API.demo) document.body.insertAdjacentHTML('beforeend', '<div class="demo-flag">MODO DEMONSTRAÇÃO</div>');
+  document.title = CFG.TITLE || 'Quiz GAV';
+  $('quizTitle').textContent = CFG.TITLE || 'Quiz GAV';
+
+  GAV.logo($('topMark'), { tagline: false, animate: false });
+  GAV.logo($('splashLogo'), { delay: 200 });
+  GAV.waves($('bgWaves'));
+  var lobbySym = GAV.symbol($('lobbySym'), { color: GAV.colors.navy });
+  var finalSym = GAV.symbol($('finalSym'), { color: GAV.colors.navy });
+  var brisa = GAV.mascot();
+  // a Brisa não cobre o formulário de entrada nem as alternativas: só aparece nas outras telas
+
+  var me = load('me', null);            // { session, pid, name }
+  var answers = load('answers', {});    // { 'session:q': 'A' }
+  var st = null, screen = '', shownQ = null, resultFor = null, lobbyStop = null, wantedName = '', wantedRoom = '';
+  // lista de salas (config.js)
+  var ROOMS = CFG.ROOMS || [];
+  ROOMS.forEach(function (r) { var o = document.createElement('option'); o.value = o.textContent = r; $('roomInput').appendChild(o); });
+  try { var last = JSON.parse(localStorage.getItem('gavq:last') || 'null'); if (last) { $('nameInput').value = last.name || ''; if (ROOMS.indexOf(last.room) >= 0) $('roomInput').value = last.room; } } catch (e) {}
+  function fullName(v) {
+    var small = /^(da|de|do|das|dos|e|di|du)$/i;
+    return v.replace(/\s+/g, ' ').trim().split(' ').map(function (w, i) {
+      return i > 0 && small.test(w) ? w.toLowerCase() : w.charAt(0).toLocaleUpperCase('pt-BR') + w.slice(1);
+    }).join(' ');
+  }
+  function validName(v) { return v.split(' ').filter(function (w) { return w.length >= 2; }).length >= 2; }
+
+  function pidNew() { return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+  function show(name) {
+    if (screen === name) return;
+    screen = name;
+    document.querySelectorAll('[data-screen]').forEach(function (s) { s.classList.toggle('on', s.dataset.screen === name); });
+    if (lobbyStop) { lobbyStop(); lobbyStop = null; }
+    brisa.auto(name !== 'join' && name !== 'question');
+    if (name === 'join') brisa.hide();
+    if (name === 'lobby') lobbyStop = lobbySym.loop();
+    if (name === 'final') finalSym.unfold(1800);
+  }
+
+  function setMe(m) {
+    me = m; save('me', m);
+    $('nameChip').hidden = !m; if (m) $('nameChip').textContent = m.name.split(' ')[0];
+  }
+
+  /* ---------- entrar ---------- */
+  $('joinForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = fullName($('nameInput').value), room = $('roomInput').value;
+    $('nameInput').classList.toggle('bad', !validName(name)); $('roomInput').classList.toggle('bad', !room);
+    if (!room) { $('joinErr').textContent = 'Selecione a sua sala.'; return; }
+    if (!validName(name)) { $('joinErr').textContent = 'Digite seu nome completo (nome e sobrenome).'; $('nameInput').focus(); return; }
+    $('nameInput').value = name;
+    wantedName = name; wantedRoom = room;
+    try { localStorage.setItem('gavq:last', JSON.stringify({ name: name, room: room })); } catch (e) {}
+    $('joinBtn').disabled = true; $('joinErr').textContent = '';
+    doJoin().then(function () { $('joinBtn').disabled = false; });
+  });
+  var joining = false;
+  function doJoin() {
+    if (joining) return Promise.resolve(); joining = true;
+    var pid = (me && me.pid) || load('pid', null) || pidNew(); save('pid', pid);
+    return API.call('join', { pid: pid, name: wantedName, room: wantedRoom }).then(function (r) {
+      if (r.ok) { setMe({ session: r.session, pid: r.pid, name: r.name, room: r.room }); brisa.react('hello', 'Bem-vindo(a), ' + r.name.split(' ')[0] + '!'); tick(); }
+      else if (r.error === 'no_session') { $('joinErr').textContent = ''; showWaitingOpen(); }
+      else $('joinErr').textContent = r.message || 'Não foi possível entrar.';
+    }).then(function () { joining = false; });
+  }
+  function showWaitingOpen() {
+    $('lobbyTitle').textContent = 'Quase lá, ' + wantedName.split(' ')[0] + '!';
+    $('lobbyText').innerHTML = 'O apresentador ainda vai abrir o quiz.<br>Você entra automaticamente.';
+    show('lobby');
+  }
+
+  /* ---------- responder ---------- */
+  function renderOptions(q, qi) {
+    var box = $('opts'); box.innerHTML = ''; box.classList.remove('locked');
+    q.options.forEach(function (txt, i) {
+      var b = document.createElement('button');
+      b.className = 'opt opt-' + L[i]; b.style.animationDelay = (i * 70) + 'ms';
+      b.innerHTML = '<span class="letter">' + L[i] + '</span><span></span>';
+      b.lastChild.textContent = txt;
+      b.addEventListener('click', function () { pick(qi, L[i], b, txt); });
+      box.appendChild(b);
+    });
+  }
+  function pick(qi, letter, btn, txt) {
+    var box = $('opts'); if (box.classList.contains('locked')) return;
+    box.classList.add('locked'); btn.classList.add('picked');
+    if (navigator.vibrate) navigator.vibrate(30);
+    var tries = 0;
+    (function send() {
+      API.call('answer', { pid: me.pid, q: qi, choice: letter, name: me.name }).then(function (r) {
+        if (r.ok) {
+          answers[me.session + ':' + qi] = letter; save('answers', answers);
+          setTimeout(function () { renderSent(letter, txt); show('sent'); brisa.react('wait', 'Hmm… será? 🤔'); }, 350);
+        } else if (r.error === 'network' && tries++ < 4) setTimeout(send, 800);
+        else if (r.error === 'time_up' || r.error === 'closed') show('timeup');
+        else { box.classList.remove('locked'); btn.classList.remove('picked'); }
+      });
+    })();
+  }
+  function renderSent(letter, txt) {
+    var i = L.indexOf(letter);
+    var t = txt || (st && st.question && st.question.options[i]) || '';
+    $('sentPick').innerHTML = '<div class="pick-badge opt-' + letter + '"><span class="letter">' + letter + '</span><span></span></div>';
+    $('sentPick').querySelector('span:last-child').textContent = t;
+  }
+
+  /* ---------- resultado pessoal ---------- */
+  function fetchResult(qi, final) {
+    var key = final ? 'final' : qi;
+    if (resultFor === key) return;
+    resultFor = key;
+    API.call('result', { pid: me.pid, q: qi }).then(function (r) {
+      if (!r.ok) { resultFor = null; return; }
+      var m = r.me || { score: 0, pos: '–', points: 0, correct: false, choice: null };
+      $('scoreChip').hidden = false; $('scoreChip').textContent = (m.hits || 0) + (m.hits === 1 ? ' acerto' : ' acertos');
+      if (final) {
+        $('finalPos').textContent = m.pos ? 'Você ficou em ' + m.pos + 'º' : 'Obrigado por jogar!';
+        $('finalText').textContent = (m.hits || 0) + (m.hits === 1 ? ' acerto' : ' acertos') + ' · ' + r.total + ' participantes' +
+          (m.roomPos ? '\nSua sala, ' + (me.room || m.room) + ', ficou em ' + m.roomPos + 'º de ' + r.rooms + '.' : '');
+        $('finalText').style.whiteSpace = 'pre-line';
+        show('final');
+        if (m.pos && m.pos <= 3) { GAV.confetti(90); brisa.react('right', 'Pódio! Que orgulho! 🏆'); } else brisa.react('hello', 'Valeu por jogar! 🌊');
+        return;
+      }
+      var card = $('resultCard'), right = !!m.correct, ci = L.indexOf(r.correct), opts = st.question.options;
+      card.className = 'result-card ' + (right ? 'right' : 'wrong');
+      $('resIcon').textContent = right ? '✓' : (m.choice ? '✕' : '–');
+      $('resIcon').style.background = right ? 'var(--ok)' : 'var(--bad)';
+      $('resTitle').textContent = right ? 'Acertou!' : (m.choice ? 'Não foi dessa vez' : 'Sem resposta');
+      $('resText').textContent = right ? 'Mandou bem!' : 'Resposta certa: ' + r.correct + ' — ' + (opts[ci] || '');
+      $('resTotal').textContent = m.hits || 0;
+      $('resRoom').textContent = m.roomPos ? m.roomPos + 'º' : '–';
+      $('resPos').textContent = m.pos ? m.pos + 'º' : '–';
+      show('result');
+      if (right) { GAV.confetti(50); brisa.react('right', ['Uhuul! Acertou! 🎉', 'Isso aí!', 'Brilhou! ✨'][Math.floor(Math.random() * 3)]); }
+      else brisa.react('wrong', m.choice ? 'Quase! Na próxima vai 💙' : 'Ei, não esquece de responder!');
+    });
+  }
+
+  /* ---------- ciclo de estado ---------- */
+  function render() {
+    if (!st) return;
+    var ph = st.phase;
+    // sessão nova: zera participante antigo
+    if (me && st.session && me.session !== st.session && ph !== 'off') { var old = me; setMe(null); wantedName = wantedName || old.name; wantedRoom = wantedRoom || old.room || ''; }
+    if (!me) {
+      if (wantedName && wantedRoom && st.session && ph !== 'off') { doJoin(); return; }
+      if (screen !== 'lobby' || !wantedName) show('join');
+      return;
+    }
+    $('nameChip').hidden = false; $('nameChip').textContent = me.name.split(' ')[0];
+    if (me.room) { $('lobbyRoom').hidden = false; $('lobbyRoom').textContent = 'Sala ' + me.room; }
+    if (ph === 'off') { $('lobbyTitle').textContent = 'Até a próxima!'; $('lobbyText').textContent = 'O quiz foi encerrado.'; show('lobby'); return; }
+    if (ph === 'lobby') { $('lobbyTitle').textContent = 'Você está dentro, ' + me.name.split(' ')[0] + '!'; $('lobbyText').innerHTML = 'Fique de olho na tela do apresentador.<br>O quiz começa em instantes.'; show('lobby'); return; }
+    if (ph === 'end') { fetchResult(st.q, true); return; }
+    var qi = st.q, mine = answers[me.session + ':' + qi];
+    if (ph === 'reveal') { fetchResult(qi, false); return; }
+    if (ph === 'question') {
+      var now = API.now();
+      if (mine) { if (screen !== 'sent') { renderSent(mine); show('sent'); } return; }
+      if (now < st.startedAt) {
+        $('readyLabel').textContent = 'Pergunta ' + (qi + 1) + ' de ' + st.total;
+        $('readyCount').textContent = Math.max(1, Math.ceil((st.startedAt - now) / 1000));
+        show('ready'); return;
+      }
+      if (st.endsAt && now > st.endsAt + 1000) { show('timeup'); return; }
+      if (shownQ !== me.session + ':' + qi || screen !== 'question') {
+        shownQ = me.session + ':' + qi; resultFor = null;
+        $('qLabel').textContent = 'Pergunta ' + (qi + 1) + ' de ' + st.total;
+        renderOptions(st.question, qi); show('question');
+        if (Math.random() < .5) brisa.react('wow', 'Valendo!');
+      }
+      var timedQ = !!st.question.time;
+      document.querySelector('.timer').hidden = !timedQ;
+      if (!timedQ) { $('qLabel').nextElementSibling.textContent = 'Sem limite de tempo · veja a pergunta no telão'; return; }
+      var left = Math.max(0, st.endsAt - now), tot = st.question.time * 1000;
+      $('timerNum').textContent = Math.ceil(left / 1000);
+      $('timerArc').setAttribute('stroke-dashoffset', String(100 - (left / tot) * 100));
+      $('timerArc').setAttribute('stroke', left < 5000 ? 'var(--bad)' : 'var(--sand)');
+    }
+  }
+
+  var polling = false, fails = 0;
+  function tick() {
+    if (polling) return; polling = true;
+    API.call('state').then(function (r) {
+      polling = false;
+      if (r && r.ok) { fails = 0; $('net').style.display = 'none'; var changed = !st || st.v !== r.v || st.phase !== r.phase; st = r; if (changed) resultFor = resultFor; render(); }
+      else if (r && r.error === 'network') { if (++fails > 2) $('net').style.display = 'block'; }
+    });
+  }
+  function loop() { tick(); setTimeout(loop, API.demo ? 900 : 2000 + Math.random() * 700); }
+  loop();
+  setInterval(render, 200);  // relógio local (contagem e timer)
+  if (me) { $('nameInput').value = me.name; if (me.room) $('roomInput').value = me.room; }
+})();
+</script>
+</body>
+</html>
