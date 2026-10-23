@@ -231,9 +231,8 @@
 
     // ondas + painel inferior
     var wy = 1060;
-    var gb = ctx.createLinearGradient(0, wy - 120, 0, wy + 120); gb.addColorStop(0, 'rgba(11,48,107,0)'); gb.addColorStop(1, 'rgba(11,48,107,.55)');
-    ctx.fillStyle = gb; ctx.fillRect(0, wy - 120, SW, 240);
-    drawWaves(ctx, -140, wy - 30, SW + 280, { blue: '#053F9B', sand: '#BF8F64' });
+    var gb = ctx.createLinearGradient(0, wy - 220, 0, wy + 200); gb.addColorStop(0, 'rgba(11,48,107,0)'); gb.addColorStop(1, 'rgba(11,48,107,.7)');
+    ctx.fillStyle = gb; ctx.fillRect(0, wy - 220, SW, SH - (wy - 220));
     ctx.fillStyle = C.navy;
     ctx.beginPath(); ctx.moveTo(0, wy + 190);
     ctx.bezierCurveTo(260, wy + 120, 520, wy + 250, 780, wy + 180); ctx.bezierCurveTo(900, wy + 150, 1000, wy + 160, SW, wy + 175);
