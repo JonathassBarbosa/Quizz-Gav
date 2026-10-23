@@ -1,0 +1,93 @@
+/* GAV Quiz — estilos compartilhados (paleta e tipografia do manual de marca) */
+:root {
+  --navy: #0B306B;     /* Azul institucional — Pantone 294 C */
+  --blue: #053F9B;     /* Subtom de azul — Pantone 293 C */
+  --off:  #FEF9E0;     /* Offwhite institucional — Pantone P 1-2 C */
+  --sand: #BF8F64;     /* Areia institucional — Pantone 2313 C */
+  --sand2:#A57A4C;     /* Subtom de areia — Pantone 6010 C */
+  --ok:   #2F7D5B;
+  --bad:  #B5523F;
+  --serif: 'Fraunces', Georgia, 'Times New Roman', serif;   /* títulos */
+  --sans:  'Albert Sans', 'Motiva Sans', system-ui, sans-serif; /* textos (Motiva Sans, se instalada) */
+  --ease: cubic-bezier(.22,.8,.2,1);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { font-family: var(--sans); color: var(--navy); background: var(--off); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+button { font: inherit; cursor: pointer; }
+.serif { font-family: var(--serif); }
+.caps { text-transform: uppercase; letter-spacing: .18em; font-weight: 700; font-size: .75rem; }
+
+/* logo / símbolo */
+.gav-logo { display: block; width: 100%; height: auto; overflow: visible; }
+.gav-logo .m-a, .gav-logo .m-l { transform-box: fill-box; }
+.gav-logo .m-l { transform-origin: 0 50%; }
+.gav-logo .p-v, .gav-logo .p-tag { transform-box: fill-box; }
+.gav-symbol { display: block; width: 100%; height: auto; overflow: visible; }
+.gav-waves { display: block; width: 100%; height: 100%; }
+
+/* screens */
+[data-screen] { display: none; }
+[data-screen].on { display: flex; animation: scrIn .5s var(--ease) both; }
+@keyframes scrIn { from { opacity: 0; transform: translateY(14px); } }
+
+/* botões */
+.btn { border: 0; border-radius: 999px; padding: .95em 1.8em; font-weight: 700; letter-spacing: .04em;
+  background: var(--navy); color: var(--off); transition: transform .15s, background .2s, opacity .2s; }
+.btn:hover { background: var(--blue); }
+.btn:active { transform: scale(.97); }
+.btn.sand { background: var(--sand); color: var(--navy); }
+.btn.sand:hover { background: #cfa078; }
+.btn.ghost { background: transparent; color: inherit; box-shadow: inset 0 0 0 2px currentColor; }
+.btn[disabled] { opacity: .45; pointer-events: none; }
+
+/* opções (A navy, B azul, C areia, D areia escura) */
+.opt-A { --c: var(--navy); --t: var(--off); }
+.opt-B { --c: var(--blue); --t: var(--off); }
+.opt-C { --c: var(--sand); --t: var(--navy); }
+.opt-D { --c: var(--sand2); --t: var(--off); }
+.letter { display: inline-grid; place-items: center; flex: none; width: 2.1em; height: 2.1em; border-radius: 50%;
+  background: var(--off); color: var(--c, var(--navy)); font-family: var(--serif); font-weight: 600; }
+
+/* mascote */
+.brisa { position: fixed; z-index: 50; width: 112px; pointer-events: none; transition: transform .7s cubic-bezier(.34,1.56,.64,1); }
+.brisa[data-side="left"]   { left: 8px;  bottom: 18vh; transform: translateX(-150%); }
+.brisa[data-side="right"]  { right: 8px; bottom: 26vh; transform: translateX(150%); }
+.brisa[data-side="bottom"] { left: 50%; bottom: -6px; margin-left: -56px; transform: translateY(120%); }
+.brisa.on[data-side="left"]   { transform: translateX(-22%); }
+.brisa.on[data-side="right"]  { transform: translateX(22%); }
+.brisa.on[data-side="bottom"] { transform: translateY(0); }
+.brisa[data-side="left"] .brisa-svg  { transform: rotate(14deg); }
+.brisa[data-side="right"] .brisa-svg { transform: rotate(-14deg); }
+.brisa-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.brisa .body { animation: bob 2.4s ease-in-out infinite; transform-origin: 70px 150px; }
+.brisa .arm { transform-box: fill-box; }
+.brisa .arm.l { transform-origin: 100% 100%; animation: waveL 1.2s ease-in-out infinite; }
+.brisa .arm.r { transform-origin: 0 100%; }
+.brisa .pupils { transition: transform .5s var(--ease); }
+.brisa.jump .body { animation: jump .55s cubic-bezier(.3,1.6,.5,1) 3, bob 2.4s 1.65s ease-in-out infinite; }
+.brisa.jump .arm.r { animation: waveR .5s ease-in-out 6; }
+.brisa.droop .body { animation: droop 1.6s ease-in-out both; }
+@keyframes bob { 50% { transform: translateY(-5px) scaleY(1.02); } }
+@keyframes jump { 0%,100% { transform: translateY(0) scale(1,1); } 30% { transform: translateY(0) scale(1.08,.9); } 60% { transform: translateY(-26px) scale(.95,1.06); } }
+@keyframes droop { 40%,80% { transform: translateY(6px) scale(1.04,.94) rotate(-4deg); } }
+@keyframes waveL { 50% { transform: rotate(18deg); } }
+@keyframes waveR { 50% { transform: rotate(-22deg); } }
+.brisa-bubble { position: absolute; bottom: 96%; left: 50%; z-index: 1; transform: translate(-30%, 6px) scale(.6); opacity: 0;
+  background: #fff; color: var(--navy); font-weight: 600; font-size: .9rem; line-height: 1.25; padding: .6em .85em; border-radius: 16px;
+  width: max-content; max-width: 210px; box-shadow: 0 8px 24px rgba(11,48,107,.18); transition: .35s var(--ease); }
+.brisa-bubble::after { content: ''; position: absolute; top: 100%; left: 30%; border: 8px solid transparent; border-top-color: #fff; }
+.brisa[data-side="right"] .brisa-bubble { transform: translate(-80%, 6px) scale(.6); }
+.brisa[data-side="right"] .brisa-bubble::after { left: 70%; }
+.brisa.talk.on .brisa-bubble { opacity: 1; transform: translate(-30%, -4px) scale(1); }
+.brisa.talk.on[data-side="right"] .brisa-bubble { transform: translate(-80%, -4px) scale(1); }
+
+/* confete */
+.confetti { position: fixed; inset: 0; pointer-events: none; z-index: 80; overflow: hidden; }
+.confetti i { position: absolute; top: 0; width: 10px; height: 14px; }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+/* balão não sai da tela quando a Brisa aparece pela esquerda */
+.brisa[data-side="left"] .brisa-bubble { left: 34%; transform: translate(0, 6px) scale(.6); }
+.brisa.talk.on[data-side="left"] .brisa-bubble { transform: translate(0, -4px) scale(1); }
+.brisa[data-side="left"] .brisa-bubble::after { left: 18%; }
