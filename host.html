@@ -283,6 +283,11 @@
             <span class="caps">Resumo</span>
             <div class="summary" id="summary"></div>
           </div>
+          <div class="set-block">
+            <span class="caps">Dados de teste</span>
+            <span class="hint">Encerra o quiz em andamento e apaga as abas <b>Respostas</b> e <b>Jogadores</b> da planilha. Os quizzes salvos não são apagados.</span>
+            <button class="btn ghost sm" id="wipeBtn" style="color:var(--bad)">Apagar dados de teste</button>
+          </div>
         </div>
         <div class="pane-foot">
           <div class="err" id="edErr" style="min-height:0"></div>
@@ -767,6 +772,15 @@
         st = r; results = null; lastPlayers = []; $('chips').innerHTML = ''; $('pCount').textContent = '0'; $('rCount').textContent = '';
         endShown = null; lastQ = null; revealedQ = null; setupMode = false; screen = ''; render();
       });
+    });
+  };
+  $('wipeBtn').onclick = function () {
+    var b = this;
+    if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'Clique de novo para apagar tudo'; setTimeout(function () { delete b.dataset.sure; b.textContent = 'Apagar dados de teste'; }, 3500); return; }
+    delete b.dataset.sure; b.textContent = 'Apagando…'; b.disabled = true;
+    host('host_reset', { wipe: '1' }).then(function (r) {
+      b.disabled = false; b.textContent = 'Apagar dados de teste';
+      if (r.ok) { st = r; lastPlayers = []; $('chips').innerHTML = ''; $('pCount').textContent = '0'; render(); toast('Testes apagados. Respostas e Jogadores estão vazios.'); }
     });
   };
   $('delQuizBtn').onclick = function () {

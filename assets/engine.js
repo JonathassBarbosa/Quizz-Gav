@@ -259,6 +259,14 @@ function createEngine(S) {
       st.view = v; return publicState(bump(st), true);
     },
 
+    /* zera os testes: encerra a sessão, limpa a memória rápida e (opcional) as abas Respostas e Jogadores */
+    host_reset: function (p) {
+      var st = S.getState(), wipe = String(p.wipe) === '1';
+      if (S.resetData) S.resetData(st.session, st.total || 0, wipe);
+      var out = { session: null, phase: 'off', q: -1, total: 0, v: st.v || 0 };
+      return publicState(bump(out), true);
+    },
+
     host_close: function () {
       var st = S.getState(); st.phase = 'off'; return publicState(bump(st), true);
     },

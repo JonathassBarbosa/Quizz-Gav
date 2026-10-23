@@ -210,8 +210,8 @@
       a.push(['btn outline sm' + (!st.view ? ' on' : ''), 'Telão: pódio', function () { act('host_view', { view: '' }); }]);
       a.push(viewBtn('rank-people', 'Telão: ranking individual'));
       a.push(viewBtn('rank-rooms', 'Telão: ranking das salas'));
-      a.push(['btn danger sm', 'Encerrar quiz', confirmClose]);
     }
+    a.push(['btn danger sm', 'Encerrar quiz', confirmClose]);
     var box = $('actions'); box.innerHTML = '';
     a.forEach(function (x) { var b = document.createElement('button'); b.className = x[0]; b.textContent = x[1]; b.onclick = x[2]; box.appendChild(b); });
   }
