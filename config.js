@@ -2,9 +2,9 @@
    CONFIGURAÇÃO — edite só este arquivo no GitHub
    ===================================================================== */
 window.GAV_CONFIG = {
-  https://script.google.com/macros/s/AKfycby06bVYPeMSgvxZnvkb5fjVRCs9kuGhpJeYoNHq6-fcviKBPrqfCaKy2A9SklJOs5ir0A/exec
+  // URL do App da Web do Google Apps Script (termina em /exec).
   // Deixe vazio ('') para usar o MODO DEMONSTRAÇÃO (tudo no mesmo navegador).
-  API_URL: '',
+  API_URL: 'https://script.google.com/macros/s/AKfycby06bVYPeMSgvxZnvkb5fjVRCs9kuGhpJeYoNHq6-fcviKBPrqfCaKy2A9SklJOs5ir0A/exec',
 
   // Endereço público da tela do participante (opcional).
   // Se vazio, usa automaticamente o index.html ao lado do host.html.
