@@ -4,7 +4,7 @@
 window.GAV_CONFIG = {
   // URL do App da Web do Google Apps Script (termina em /exec).
   // Deixe vazio ('') para usar o MODO DEMONSTRAÇÃO (tudo no mesmo navegador).
-  API_URL: 'https://script.google.com/macros/s/AKfycby06bVYPeMSgvxZnvkb5fjVRCs9kuGhpJeYoNHq6-fcviKBPrqfCaKy2A9SklJOs5ir0A/exec',
+  API_URL: 'https://script.google.com/macros/s/AKfycbzyk0jOUdlGoJYC67gjXUqcwMXG-O9q8DLYJ2ynrV-YeBJet_NI7f50B7gUIZSJejL9YA/exec',
 
   // Endereço público da tela do participante (opcional).
   // Se vazio, usa automaticamente o index.html ao lado do host.html.
