@@ -2,7 +2,7 @@
    CONFIGURAÇÃO — edite só este arquivo no GitHub
    ===================================================================== */
 window.GAV_CONFIG = {
-  // https://script.google.com/macros/s/AKfycby06bVYPeMSgvxZnvkb5fjVRCs9kuGhpJeYoNHq6-fcviKBPrqfCaKy2A9SklJOs5ir0A/exec
+  https://script.google.com/macros/s/AKfycby06bVYPeMSgvxZnvkb5fjVRCs9kuGhpJeYoNHq6-fcviKBPrqfCaKy2A9SklJOs5ir0A/exec
   // Deixe vazio ('') para usar o MODO DEMONSTRAÇÃO (tudo no mesmo navegador).
   API_URL: '',
 
